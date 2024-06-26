@@ -11,5 +11,8 @@
   "description": "",
   "devDependencies": {
     "serverless-iam-roles-per-function": "^3.2.0"
+  },
+  "dependencies": {
+    "serverless-ssm-fetch": "^2.0.0"
   }
 }

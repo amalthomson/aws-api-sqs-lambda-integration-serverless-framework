@@ -19,6 +19,19 @@ provider:
             - sqs:GetQueueAttributes
           Resource: !GetAtt MyQueue.Arn
 
+        # Allow Lambda to read from SSM Parameter Store
+        - Effect: Allow
+          Action:
+            - ssm:GetParameter
+            - ssm:GetParameters
+            - ssm:GetParametersByPath
+          Resource: "arn:aws:ssm:${self:provider.region}:${aws:accountId}:parameter/country"
+
+# Custom section for serverless-ssm-fetch plugin
+custom:
+  serverlessSsmFetch:
+    country: '/country'
+
 # Lambda function configuration
 functions:
   sqsConsumer:
@@ -27,6 +40,8 @@ functions:
       - sqs:
           arn: !GetAtt MyQueue.Arn
           batchSize: 10  # Process 10 messages at a time
+    environment:
+      country: ${self:custom.serverlessSsmFetch.country}
 
 # AWS resources configuration
 resources:
@@ -68,7 +83,10 @@ resources:
           IntegrationResponses:
             - StatusCode: 200
               ResponseTemplates:
-                application/json: '{"message": "The Message was received, please be patient your request is being processed. Thank you"}'
+                application/json: |
+                                    #set($inputRoot = $input.path('$'))
+                                    {"message": "The Message was received, please be patient your request is being processed. Thank you\n",
+                                    "reference_id": "$inputRoot.SendMessageResponse.SendMessageResult.MessageId"}
           RequestParameters:
             integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
           RequestTemplates:
@@ -111,10 +129,14 @@ resources:
 
 package:
   individually: true
+  patterns:
+    - '!.serverless/**'
+    - '!node_modules/**'
 
 # Serverless plugins
 plugins:
   - serverless-iam-roles-per-function
+  - serverless-ssm-fetch
 
 outputs:
   QueueUrl:
